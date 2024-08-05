@@ -12,10 +12,16 @@ contract NFT is ERC721A("NFT EXAMPLE", "NFT"), ERC721AQueryable, Ownable {
     // =============================================================
     //                           EVENTS
     // =============================================================
-    event StartingIndexSet(uint256 _value);
-    event ProvenanceHashUpdated(uint256 _hash);
-    event WhitelistSignerUpdated(address _whitelistSigner);
+
     event BaseUriUpdated(string _uri);
+
+    // =============================================================
+    //                           ERRORS
+    // =============================================================
+
+    error MintLimitReached();
+    error MaxSupplyReached();
+    error InsufficientPayment();
 
     // =============================================================
     //                           STATE
@@ -44,11 +50,13 @@ contract NFT is ERC721A("NFT EXAMPLE", "NFT"), ERC721AQueryable, Ownable {
     /// @param numberOfTokens the number of NFTs to buy
     function buyPublic(uint256 numberOfTokens) external payable {
         uint256 newMintedCount = _mintedCount[_msgSenderERC721A()] + numberOfTokens;
-        require(_totalMinted() + numberOfTokens <= MAX_SUPPLY);
-        require(newMintedCount <= MAX_MINTABLE);
-        require(msg.value >= numberOfTokens * MINT_PRICE);
+
+        if (_totalMinted() + numberOfTokens > MAX_SUPPLY) revert MaxSupplyReached();
+        if (newMintedCount > MAX_MINTABLE) revert MintLimitReached();
+        if (msg.value < numberOfTokens * MINT_PRICE) revert InsufficientPayment();
 
         _mintedCount[msg.sender] = newMintedCount;
+
         _safeMint(msg.sender, numberOfTokens);
     }
 
@@ -62,7 +70,7 @@ contract NFT is ERC721A("NFT EXAMPLE", "NFT"), ERC721AQueryable, Ownable {
     /// @param tokenId token ID
     function tokenURI(uint256 tokenId) public view override(ERC721A, IERC721A) returns (string memory) {
         require(_exists(tokenId));
-        return string(abi.encodePacked(_baseURI(), _toString(tokenId)));
+        return _baseUri;
     }
 
     // =============================================================
